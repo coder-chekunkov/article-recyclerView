@@ -201,7 +201,7 @@ class PersonService {
 }
 ```
 
-В классе PersonService хранится лист пользователей, который мы заполняем в `init` (initializers blocks) и лист ссылок на фотографии.
+В классе PersonService хранится лист пользователей, который мы заполняем в `init` (initializers blocks), и лист ссылок на фотографии.
 
 После создания классов необходимо класс PersonService сделать `Singleton` для корректной работы. Для этого создадим класс *App*, и укажем в нем следующее:
 
@@ -210,3 +210,287 @@ class App : Application() {
     val personService = PersonService()
 }
 ```
+
+Теперь **реализуем адаптер** *PersonAdapter*, который будет обрабатывать наши данные и связывать их со списком.
+
+Данный класс будет реализовать `RecyclerView.Adapter`, которому нужен ViewHolder. Соответственно необходимо создать *PersonViewHolder*, который будет реализовывать `RecyclerView.ViewHolder` и принимать наш binding.
+
+Также PersonAdapter должен иметь данные, с которыми ему предстоит работать. Для этого создадим пустой список и перепишем его сеттер. В итоге получаем:
+
+```kotlin
+class PersonAdapter : RecyclerView.Adapter<PersonAdapter.PersonViewHolder>() {
+
+    var data: List<Person> = emptyList()
+        set(newValue) {
+            field = newValue
+            notifyDataSetChanged()
+        }
+
+    class PersonViewHolder(val binding: ItemPersonBinding) : RecyclerView.ViewHolder(binding.root)
+}
+```
+
+Но для работы адаптера необходимо переопределить минимум три метода (AndroidStudio подскажет нам).
+
+Метод `getItemCount`, который будет возвращать количество элементов нашего списка с данными; <br/>
+Метод `onCreateViewHolder`, в котором будет происходить создание ViewHolder. Данный метод принимает в себя *parent* и *viewType* (используется в том случае, если в списке будут разные типы элементов списка); <br/>
+Метод `onBindViewHolder`, в котором будет происходить отрисовка всех элементов в объекте списка (имя человека, компания и т.д.):
+
+После переопределения методов и их реализации получаем:
+
+```kotlin
+    override fun getItemCount(): Int = data.size // Количество элементов в списке данных
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PersonViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = ItemPersonBinding.inflate(inflater, parent, false)
+
+        return PersonViewHolder(binding)
+    }
+
+    override fun onBindViewHolder(holder: PersonViewHolder, position: Int) {
+        val person = data[position] // Получение человека из списка данных по позиции
+        val context = holder.itemView.context
+
+        with(holder.binding) {
+            val color = if (person.isLiked) R.color.red else R.color.grey // Цвет "сердца", если пользователь был лайкнут
+
+            nameTextView.text = person.name // Отрисовка имени пользователя
+            companyTextView.text = person.companyName // Отрисовка компании пользователя
+            likedImageView.setColorFilter( // Отрисовка цвета "сердца"
+                ContextCompat.getColor(context, color),
+                android.graphics.PorterDuff.Mode.SRC_IN
+            )
+            Glide.with(context).load(person.photo).circleCrop() // Отрисовка фотографии пользователя с помощью библиотеки Glide
+                .error(R.drawable.ic_person) 
+                .placeholder(R.drawable.ic_person).into(imageView)
+        }
+    }
+```
+
+На этом наш простой адаптер, который будет просто выводить горизонтальный список готов.
+
+Теперь необходимо повесить на наш RecyclerView созданный адаптер и LayoutManager. Для этого в классе MainActivity пропишем следующее:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var adapter: PersonAdapter // Объект Adapter
+    private val personService: PersonService // Объект PersonService
+        get() = (applicationContext as App).personService
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        val manager = LinearLayoutManager(this) // LayoutManager
+        adapter = PersonAdapter() // Создание объекта
+        adapter.data = personService.getPersons() // Заполнение данными
+
+        binding.recyclerView.layoutManager = manager // Назначение LayoutManager для RecyclerView
+        binding.recyclerView.adapter = adapter // Назначение адаптера для RecyclerView
+    }
+}
+```
+
+Запускаем наше приложение на устройстве и получаем список пользователей!
+
+На данном этапе наше приложение просто выводит данные, которые мы можем прокручивать, но взаимодействовать с ними у нас не получится. Исправим это.
+
+В классе PersonService добавим три метода:
+
+- *likePerson* - лайкаем человека;
+  
+- *removePerson* - удаляем человека;
+  
+- *movePerson* - перемещаем человека (принимает человека и куда надо переместить: "1" - вниз, "-1" - вверх).
+  
+
+```kotlin
+    fun likePerson(person: Person) {
+        val index = persons.indexOfFirst { it.id == person.id } // Находим индекс человека в списке
+        if (index == -1) return // Останавливаемся, если не находим такого человека
+
+        persons = ArrayList(persons) // Создаем новый список
+        persons[index] = persons[index].copy(isLiked = !persons[index].isLiked) // Меняем значение "лайка" на противоположное
+    }
+
+    fun removePerson(person: Person) {
+        val index = persons.indexOfFirst { it.id == person.id } // Находим индекс человека в списке
+        if (index == -1) return // Останавливаемся, если не находим такого человека
+
+        persons = ArrayList(persons) // Создаем новый список
+        persons.removeAt(index) // Удаляем человека
+    }
+
+    fun movePerson(person: Person, moveBy: Int) {
+        val oldIndex = persons.indexOfFirst { it.id == person.id } // Находим индекс человека в списке
+        if (oldIndex == -1) return // Останавливаемся, если не находим такого человека
+
+        val newIndex = oldIndex + moveBy // Вычисляем новый индекс, на котором должен находится человек
+        persons = ArrayList(persons) // Создаем новый список
+        Collections.swap(persons, oldIndex, newIndex) // Меняем местами людей        
+    }
+```
+
+После того, как были созданы методы взаимодействия с людьми, в классе PersonService необходимо **объявить слушателя**:
+
+```kotlin
+typealias PersonListener = (persons: List<Person>) -> Unit
+```
+
+Так же **создадим** список слушателей, два метода, которые будут добавлять и удалять слушателей, и один, который будет "регистрировать изменения":
+
+```kotlin
+    private var listeners = mutableListOf<PersonListener>() // Все слушатели
+
+    fun addListener(listener: PersonListener) {
+        listeners.add(listener)
+        listener.invoke(persons)
+    }
+
+    fun removeListener(listener: PersonListener) {
+        listeners.remove(listener)
+        listener.invoke(persons)
+    }
+
+    private fun notifyChanges() = listeners.forEach { it.invoke(persons) }
+```
+
+Метод *notifyChanges* необходимо обязательно вызвать в методах, в которых происходит модификация данных, то есть в методах likePerson, removePerson и movePerson.
+
+На этом наш сервис людей полностью готов. Перейдем в PersonAdapter, в котором **реализуем обработку событий** наших людей. Создадим интерфейс *PersonActionListener*, в котором буду четыре метода:
+
+- *onPersonGetId* - получить уникальный номер выбранного человека;
+  
+- *onPersonLike* - человек был лайкнут;
+  
+- *onPersonRemove* - удалить человека;
+  
+- *onPersonMove* - переместить человека.
+  
+
+```kotlin
+interface PersonActionListener {
+    fun onPersonGetId(person: Person)
+    fun onPersonLike(person: Person)
+    fun onPersonRemove(person: Person)
+    fun onPersonMove(person: Person, moveBy: Int)
+}
+```
+
+Класс PersonAdapter во входные параметры будет принимать наш интерфейс. Также данный класс должен реализовать интерфейс *OnClickListener*. В итоге сигнатура объявления класса PersonAdaper выглядит следующим образом:
+
+```kotlin
+class PersonAdapter(private val personActionListener: PersonActionListener) :
+    RecyclerView.Adapter<PersonAdapter.PersonViewHolder>(), View.OnClickListener {
+```
+
+Теперь в классе PersonAdapter в методе onBindViewHolder кладём в tag каждого view, на которую будет происходить нажатие, нужного человека:
+
+```kotlin
+holder.itemView.tag = person
+holder.binding.likedImageView.tag = person
+holder.binding.more.tag = person
+```
+
+Теперь в методе onCreateViewHolder необходимо проинициализировать слушателей при нажатии. В данном примере будет слушатель на нажатие на элемент списка, кнопку more (три точки) и likedImageView (сердце):
+
+```kotlin
+binding.root.setOnClickListener(this)
+binding.more.setOnClickListener(this)
+binding.likedImageView.setOnClickListener(this)
+```
+
+Теперь создадим метод *showPopupMenu*, который будет "рисовать" выпадающее меню с доступными действиями, а именно: удалить пользователя, переместить вверх, переместить вниз:
+
+```kotlin
+    private fun showPopupMenu(view: View) {
+        val popupMenu = PopupMenu(view.context, view)
+        val person = view.tag as Person
+        val position = data.indexOfFirst { it.id == person.id }
+
+        popupMenu.menu.add(0, ID_MOVE_UP, Menu.NONE, "Up").apply {
+            isEnabled = position > 0
+        }
+        popupMenu.menu.add(0, ID_MOVE_DOWN, Menu.NONE, "Down").apply {
+            isEnabled = position < data.size - 1
+        }
+        popupMenu.menu.add(0, ID_REMOVE, Menu.NONE, "Remove")
+
+        popupMenu.setOnMenuItemClickListener {
+            when (it.itemId) {
+                ID_MOVE_UP -> personActionListener.onPersonMove(person, -1)
+                ID_MOVE_DOWN -> personActionListener.onPersonMove(person, 1)
+                ID_REMOVE -> personActionListener.onPersonRemove(person)
+            }
+            return@setOnMenuItemClickListener true
+        }
+
+        popupMenu.show()
+    }
+
+    companion object {
+        private const val ID_MOVE_UP = 1
+        private const val ID_MOVE_DOWN = 2
+        private const val ID_REMOVE = 3
+    }
+```
+
+В методе *onClick* обработаем нажатия на элементы списка:
+
+```kotlin
+    override fun onClick(view: View) {
+        val person: Person = view.tag as Person // Получаем из тэга человека
+
+        when (view.id) {
+            R.id.more -> showPopupMenu(view)
+            R.id.likedImageView -> personActionListener.onPersonLike(person)
+            else -> personActionListener.onPersonGetId(person)
+        }
+    }
+```
+
+На этом наш адаптер готов. Теперь перейдем в MainActivity и, при инициализации нашего адаптера, передадим реализацию интерфейса:
+
+```kotlin
+adapter = PersonAdapter(object : PersonActionListener { // Создание объекта
+   override fun onPersonGetId(person: Person) =
+      Toast.makeText(this@MainActivity, "Persons ID: ${person.id}", Toast.LENGTH_SHORT).show()
+
+   override fun onPersonLike(person: Person) = personService.likePerson(person)
+
+   override fun onPersonRemove(person: Person) = personService.removePerson(person)
+
+   override fun onPersonMove(person: Person, moveBy: Int) = personService.movePerson(person, moveBy)
+
+})
+```
+
+Также добавим слушателя в MainActivity, который будет прослушивать изменения, происходящие в PersonService:
+
+```kotlin
+private val listener: PersonListener = {adapter.data = it}
+```
+
+И в методе onCreate добавим этого слушателя:
+
+```kotlin
+personService.addListener(listener)
+```
+
+На этом наша работа выполнена. Запускаем проект и смотрим результат:
+
+<p align="center">
+ <img alt="GIF" src="https://github.com/coder-chekunkov/RecyclerView-Article/blob/main/wiki_images/003.gif" width="220"/> <br/>
+</p>
+
+Мы рассмотрели основы RecyclerView. Естественно это далеко не все, что позволяет сделать этот мощный инструмент. Всегда можно добавить DiffUtil, который поможет оптимизировать список, ItemDecorator, для декора наших элементов и т.д.
+
+---
+
+🏆 Я надеюсь, что данная работа помогла Вам. <br/>
+📧 При возникновении каких-либо вопросов и предложений - свяжитесь со мной. <br/>
+🤝 Спасибо, что заинтересовались данной работой.
