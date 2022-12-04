@@ -302,9 +302,7 @@ class MainActivity : AppCompatActivity() {
 В классе PersonService добавим три метода:
 
 - *likePerson* - лайкаем человека;
-  
-- *removePerson* - удаляем человека;
-  
+- *removePerson* - удаляем человека; 
 - *movePerson* - перемещаем человека (принимает человека и куда надо переместить: "1" - вниз, "-1" - вверх).
   
 
@@ -364,11 +362,8 @@ typealias PersonListener = (persons: List<Person>) -> Unit
 На этом наш сервис людей полностью готов. Перейдем в PersonAdapter, в котором **реализуем обработку событий** наших людей. Создадим интерфейс *PersonActionListener*, в котором буду четыре метода:
 
 - *onPersonGetId* - получить уникальный номер выбранного человека;
-  
 - *onPersonLike* - человек был лайкнут;
-  
 - *onPersonRemove* - удалить человека;
-  
 - *onPersonMove* - переместить человека.
   
 
