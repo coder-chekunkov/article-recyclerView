@@ -1,6 +1,7 @@
 ### :book: RecyclerView для начинающего Android-разработчика.
 
-Данная статья была написана [coder-chekunkov](https://github.com/coder-chekunkov) для начинающих Android-разработчиков. Тема: RecyclerView.
+Данная статья была написана [coder-chekunkov](https://github.com/coder-chekunkov) для начинающих Android-разработчиков. Тема: RecyclerView. <br/>
+[Ссылка](https://habr.com/ru/sandbox/181814/) на статью на Habr.
 
 
 <p align="center">
@@ -482,7 +483,8 @@ personService.addListener(listener)
  <img alt="GIF" src="https://github.com/coder-chekunkov/RecyclerView-Article/blob/main/wiki_images/003.gif" width="220"/> <br/>
 </p>
 
-Мы рассмотрели основы RecyclerView. Естественно это далеко не все, что позволяет сделать этот мощный инструмент. Всегда можно добавить DiffUtil, который поможет оптимизировать список, ItemDecorator, для декора наших элементов и т.д.
+Мы рассмотрели основы RecyclerView. Естественно это далеко не все, что позволяет сделать этот мощный инструмент. Всегда можно добавить DiffUtil, который поможет оптимизировать список, ItemDecorator, для декора наших элементов и т.д. <br/>
+[Ссылка](https://habr.com/ru/sandbox/181814/) на статью на Habr.
 
 ---
 
