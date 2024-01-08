@@ -1,45 +1,52 @@
 package com.cdr.recyclerview
-
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.cdr.recyclerview.ViewModel.PersonViewModel
 import com.cdr.recyclerview.adapter.PersonActionListener
 import com.cdr.recyclerview.adapter.PersonAdapter
 import com.cdr.recyclerview.databinding.ActivityMainBinding
 import com.cdr.recyclerview.model.Person
-import com.cdr.recyclerview.model.PersonListener
-import com.cdr.recyclerview.model.PersonService
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var adapter: PersonAdapter // Объект Adapter
-    private val personService: PersonService // Объект PersonService
-        get() = (applicationContext as App).personService
+    private lateinit var adapter: PersonAdapter
+    private lateinit var  viewModel: PersonViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val manager = LinearLayoutManager(this) // LayoutManager
-        adapter = PersonAdapter(object : PersonActionListener { // Создание объекта
-            override fun onPersonGetId(person: Person) =
+        viewModel = PersonViewModel()
+
+        val manager = LinearLayoutManager(this)
+        adapter = PersonAdapter(object : PersonActionListener {
+            override fun onPersonGetId(person: Person) {
                 Toast.makeText(this@MainActivity, "Persons ID: ${person.id}", Toast.LENGTH_SHORT).show()
+            }
 
-            override fun onPersonLike(person: Person) = personService.likePerson(person)
+            override fun onPersonLike(person: Person) {
+                viewModel.likePerson(person)
+            }
 
-            override fun onPersonRemove(person: Person) = personService.removePerson(person)
+            override fun onPersonRemove(person: Person) {
+                viewModel.removePerson(person)
+            }
 
-            override fun onPersonMove(person: Person, moveBy: Int) = personService.movePerson(person, moveBy)
-
+            override fun onPersonMove(person: Person, moveBy: Int) {
+                viewModel.movePerson(person, moveBy)
+            }
         })
-        personService.addListener(listener)
 
-        binding.recyclerView.layoutManager = manager // Назначение LayoutManager для RecyclerView
-        binding.recyclerView.adapter = adapter // Назначение адаптера для RecyclerView
+        viewModel.personList.observe(this, Observer {
+            adapter.data = it
+        })
+
+        binding.recyclerView.layoutManager = manager
+        binding.recyclerView.adapter = adapter
     }
-
-    private val listener: PersonListener = {adapter.data = it}
 }
